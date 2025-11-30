@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard IoT & IA - Irrigation Intelligente</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ---- Design variables ---- */
+        :root {
+            --bg: #f4f7fb;
+            --panel: #ffffff;
+            --muted: #6b7280;
+            --primary: #0b69b3;
+            --accent: #0ea5a4;
+            --text: #0b1220;
+            --glass: rgba(255, 255, 255, 0.6);
+            --shadow: 0 10px 30px rgba(8, 20, 40, 0.06);
+            --card-radius: 12px;
+        }
+
+        /* dark theme variables (applied when body.dark class present) */
+        body.dark {
+            --bg: #0b0f16;
+            --panel: #0f1724;
+            --muted: #9aa6b2;
+            --primary: #2386d6;
+            --accent: #06b6a4;
+            --text: #e6eef7;
+            --glass: rgba(255, 255, 255, 0.03);
+            --shadow: 0 12px 30px rgba(40, 14, 14, 0.6);
+        }
+
+        /* ---- Base ---- */
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        header {
+            position: relative;
+            /* pour que la brand soit centrée */
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            /* bouton reste à droite */
+            padding: 18px 28px;
+            background: linear-gradient(90deg, rgba(6, 87, 148, 0.95), rgba(58, 96, 116, 0.95));
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        header .brand {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 50px;
+            align-items: center;
+        }
+
+
+
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 2px;
+            font-weight: 800;
+
+        }
+
+        .header-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* mode button */
+        #modeBtn {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #modeBtn:hover {
+            transform: translateY(-1px);
+            transition: all .18s ease;
+        }
+
+        /* container layout: left big (charts) + right sidebar */
+        .wrapper {
+            max-width: 1180px;
+            margin: 22px auto;
+            padding: 0 18px;
+            display: grid;
+            grid-template-columns: 2fr 380px;
+            gap: 20px;
+        }
+
+        /* left column: grid of 2x2 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-rows: minmax(200px, auto);
+            gap: 18px;
+        }
+
+        /* card / panel */
+        .card {
+            background: var(--panel);
+            border-radius: var(--card-radius);
+            padding: 14px;
+            box-shadow: var(--shadow);
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            font-size: 15px;
+            color: var(--text);
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        /* chart container sizes */
+        .chart-sm {
+            height: 200px;
+        }
+
+        .chart-lg {
+            height: 200px;
+        }
+
+        /* RIGHT SIDEBAR */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            position: relative;
+        }
+
+        .notif {
+            padding: 12px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(194, 191, 191, 0.02), rgba(0, 0, 0, 0.01));
+            box-shadow: 0 6px 18px rgba(6, 17, 36, 0.03);
+        }
+
+        .notif strong {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 6px 18px rgba(11, 18, 32, 0.06);
+        }
+
+        .btn.ghost {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        .btn:hover {
+            transform: translateY(-6px);
+        }
+
+        .btn.secondary {
+            background: var(--accent);
+        }
+
+        /* switch */
+        .switch-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 10px;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .switch {
+            width: 70px;
+            height: 36px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .switch input {
+            display: none;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #d1d5db;
+            border-radius: 999px;
+            transition: .3s;
+        }
+
+        .slider:before {
+            content: "";
+            position: absolute;
+            left: 5px;
+            top: 5px;
+            width: 26px;
+            height: 26px;
+            background: white;
+            border-radius: 50%;
+            transition: .3s;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .switch input:checked+.slider {
+            background: var(--accent);
+        }
+
+        .switch input:checked+.slider:before {
+            transform: translateX(34px);
+        }
+
+        /* table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: var(--panel);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        thead th {
+            text-align: left;
+            padding: 10px;
+            background: linear-gradient(90deg, rgba(11, 105, 179, 0.07), rgba(6, 103, 151, 0.04));
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        tbody td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+            color: var(--text);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(17, 17, 17, 0.45);
+            backdrop-filter: blur(2px);
+            /* flou derrière */
+            -webkit-backdrop-filter: blur(2px);
+            /* Safari */
+            z-index: 50;
+        }
+
+        .modal {
+            width: 360px;
+            max-width: 92%;
+            background: var(--panel);
+            padding: 18px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .modal h4 {
+            margin: 0 0 8px 0;
+        }
+
+
+        footer {
+
+            color: #6b7280;
+            padding: 1px;
+            text-align: center;
+            margin-top: 1px;
+        }
+
+        /* responsive */
+        @media (max-width:980px) {
+            .wrapper {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                order: 2;
+            }
+        }
+
+        /* par défaut desktop */
+        .mobile-brand {
+            display: none;
+        }
+
+        @media (max-width:800px) {
+
+            /* Cacher le header desktop */
+            .brand:not(.mobile-brand) {
+                display: none;
+            }
+
+            /* Header mobile */
+            .mobile-brand {
+                display: flex;
+                gap: 4px;
+                align-items: center;
+                justify-content: flex-start;
+                /* aligner tout à gauche */
+                flex: 1;
+                /* occupe toute la largeur restante */
+            }
+
+            header {
+                padding: 8px 12px;
+                display: flex;
+                justify-content: space-between;
+                /* bouton à droite */
+                align-items: center;
+            }
+
+            .header-right {
+                flex-shrink: 0;
+                /* ne pas rétrécir le bouton */
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="brand">
+            <div style="font-size:30px;">🌾</div>
+            <div style="font-size:30px; transform: rotate(-5deg)">🌿</div>
+            <div>
+                <h1 style="font-size:18px">Système d'Irrigation Intelligente</h1>
+                <div class="muted" style="font-size:12px; text-align: center; color: #b6c5d1;">IoT · GSM · Intelligence
+                    Artificielle</div>
+            </div>
+            <div style="font-size:30px; transform: rotate(-80deg)">🌿</div>
+            <div style="font-size:30px;">🌾</div>
+        </div>
+
+        <div class="mobile-brand">
+            <div style="font-size:24px;">🍀</div>
+            <div>
+                <h1 style="font-size:16px; margin:0;">Irrigation IA</h1>
+            </div>
+            <div style="font-size:24px;">🍀</div>
+        </div>
+
+        <div class="header-right">
+            <button id="modeBtn" title="Basculer mode sombre">🌙 Mode sombre</button>
+        </div>
+
+    </header>
+
+    <div class="wrapper">
+        <!-- LEFT: charts -->
+        <div>
+            <div class="charts-grid">
+                <div class="card">
+                    <h3>Humidité du sol <span class="muted" id="curHum" style="float:right">-- %</span></h3>
+                    <div class="chart-sm"><canvas id="chartHum"></canvas></div>
+                </div>
+
+                <div class="card">
+                    <h3>Température <span class="muted" id="curTemp" style="float:right">-- °C</span></h3>
+                    <div class="chart-sm"><canvas id="chartTemp"></canvas></div>
+                </div>
+
+                <div class="card">
+                    <h3>Niveau d'eau <span class="muted" id="curWater" style="float:right">-- %</span></h3>
+                    <div class="chart-lg"><canvas id="chartWater"></canvas></div>
+                </div>
+
+                <div class="card">
+                    <h3>Historique (dernières mesures)</h3>
+                    <div style="margin-top:8px; overflow:auto; max-height:200px;">
+                        <table id="historyTable" aria-live="polite">
+                            <thead>
+                                <tr>
+                                    <th>Heure</th>
+                                    <th>Humidité</th>
+                                    <th>Temp</th>
+                                    <th>Eau</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                        <button class="btn" id="exportBtn">Exporter CSV</button>
+                        <button class="btn ghost" id="clearBtn">Effacer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- RIGHT: controls vertical -->
+        <aside class="sidebar">
+            <div class="notif card" aria-live="polite">
+                <strong>Notifications</strong>
+                <div id="notifText" class="muted">Aucune notification.</div>
+            </div>
+
+            <button id="predictBtn" class="btn secondary">🔮 Lancer la prédiction</button>
+
+            <div class="switch-wrap">
+                <div style="font-weight:700">Irrigation</div>
+                <label class="switch" title="Activer / Désactiver irrigation">
+                    <input type="checkbox" id="irrigSwitch" aria-label="Irrigation" />
+                    <span class="slider"></span>
+                </label>
+                <div id="irrigStatus" class="muted">Statut : OFF</div>
+            </div>
+
+            <div class="card" style="text-align:center">
+                <div style="font-size:13px; color:var(--muted)">État du Système</div>
+                <div id="systemState" style="margin-top:8px; font-weight:700">Nominal</div>
+            </div>
+        </aside>
+    </div>
+
+    <footer>
+        © 2025 - Système d'Irrigation Intelligente IoT & IA fait par LWANZO MBONGOLA Fidèle
+    </footer>
+
+    <!-- modal -->
+    <div id="modalBackdrop" class="modal-backdrop">
+        <div class="modal" role="dialog" aria-modal="true">
+            <h4>Résultat de la prédiction</h4>
+            <p id="modalText">...</p>
+            <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end">
+                <button class="btn" onclick="closeModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ---------------- JS: charts, data simulation, UI logic ---------------- */
+
+        const MAX_POINTS = 20;       // keep last 20 points in charts
+        const MAX_TABLE_ROWS = 20;   // show last 20 rows in history
+
+        const historyData = []; // {t, h, temp, w}
+        const curHum = document.getElementById('curHum');
+        const curTemp = document.getElementById('curTemp');
+        const curWater = document.getElementById('curWater');
+        const notifText = document.getElementById('notifText');
+        const tbody = document.querySelector('#historyTable tbody');
+        const systemState = document.getElementById('systemState');
+        const irrigStatus = document.getElementById('irrigStatus');
+
+        // Chart setup
+        function createLine(canvas, color, label) {
+            return new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: hexToRgba(color, 0.06), tension: 0.25, pointRadius: 2 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false, grid: { display: false } },
+                        y: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--muted') }, grid: { color: 'rgba(0,0,0,0.04)' } }
+                    }
+                }
+            });
+        }
+
+        // helper rgba
+        function hexToRgba(hex, a) {
+            const c = hex.replace('#', '');
+            const r = parseInt(c.substring(0, 2), 16);
+            const g = parseInt(c.substring(2, 4), 16);
+            const b = parseInt(c.substring(4, 6), 16);
+            return `rgba(${r},${g},${b},${a})`;
+        }
+
+        const chartHum = createLine(document.getElementById('chartHum'), '#06b6a4', 'Humidité');
+        const chartTemp = createLine(document.getElementById('chartTemp'), '#f97316', 'Température');
+        const chartWater = createLine(document.getElementById('chartWater'), '#3b82f6', 'Niveau d\'eau');
+
+        function pushChart(chart, label, value) {
+            chart.data.labels.push(label);
+            chart.data.datasets[0].data.push(value);
+            if (chart.data.labels.length > MAX_POINTS) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            chart.update();
+        }
+
+        // generate simulated values (real app: replace with ESP32 data)
+        function randomInt(min, max) { return Math.round(Math.random() * (max - min) + min); }
+
+        function simulate() {
+            const now = new Date();
+            const t = now.toLocaleTimeString();
+            const h = randomInt(20, 90);            // humidity %
+            const temp = +(randomInt(18, 33) + Math.random()).toFixed(1);
+            const w = randomInt(10, 95);            // water %
+
+            curHum.textContent = h + ' %';
+            curTemp.textContent = temp + ' °C';
+            curWater.textContent = w + ' %';
+
+            historyData.unshift({ t, h, temp, w });
+            if (historyData.length > 500) historyData.pop();
+
+            // update charts (keeps last MAX_POINTS)
+            pushChart(chartHum, t, h);
+            pushChart(chartTemp, t, temp);
+            pushChart(chartWater, t, w);
+
+            renderTable();
+            evaluateAlerts(h, w);
+        }
+
+        // render table last N rows
+        function renderTable() {
+            tbody.innerHTML = '';
+            const slice = historyData.slice(0, MAX_TABLE_ROWS);
+            for (const row of slice) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${row.t}</td><td>${row.h}%</td><td>${row.temp}°C</td><td>${row.w}%</td>`;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // notifications & system state
+        let notifTimer = null;
+        function setNotif(text, type = 'info') {
+            notifText.textContent = text;
+            // color subtle
+            if (type === 'alert') notifText.style.color = '#ef4444';
+            else if (type === 'ok') notifText.style.color = '#16a34a';
+            else notifText.style.color = getComputedStyle(document.body).getPropertyValue('--muted');
+
+            if (notifTimer) clearTimeout(notifTimer);
+            notifTimer = setTimeout(() => { notifText.style.color = getComputedStyle(document.body).getPropertyValue('--muted'); }, 3500);
+        }
+
+        function evaluateAlerts(h, w) {
+            if (h < 30) { setNotif('Humidité faible — risque de sécheresse', 'alert'); systemState.textContent = 'Attention'; }
+            else if (w < 20) { setNotif('Niveau d\'eau critique', 'alert'); systemState.textContent = 'Alerte'; }
+            else { setNotif('Système stable', 'ok'); systemState.textContent = 'Nominal'; }
+        }
+
+        // initial fill
+        for (let i = 0; i < 6; i++) simulate();
+
+        // run simulation every 4s
+        const simInterval = setInterval(simulate, 4000);
+
+        // PREDICTION modal
+        const modal = document.getElementById('modalBackdrop');
+        document.getElementById('predictBtn').addEventListener('click', () => {
+            // simple heuristic based on recent humidity average
+            const recent = historyData.slice(0, Math.min(12, historyData.length));
+            const avg = recent.length ? Math.round(recent.reduce((s, r) => s + r.h, 0) / recent.length) : null;
+            let text = 'Données insuffisantes pour prédire';
+            if (avg !== null) {
+                if (avg < 35) text = '🌱 Semence recommandée : Imminente (0–7 jours)';
+                else if (avg < 55) text = '⏳ Période favorable : 7–21 jours';
+                else text = '✅ Attendre, humidité élevée (>55%)';
+            }
+            document.getElementById('modalText').textContent = text;
+            modal.style.display = 'flex';
+        });
+        function closeModal() { modal.style.display = 'none'; }
+        window.closeModal = closeModal;
+
+        // IRRIGATION switch
+        const irrigSwitch = document.getElementById('irrigSwitch');
+        irrigSwitch.addEventListener('change', e => {
+            const on = e.target.checked;
+            irrigStatus.textContent = 'Statut : ' + (on ? 'ON' : 'OFF');
+            setNotif(on ? 'Irrigation activée' : 'Irrigation arrêtée', 'ok');
+            // here: call backend / send command
+        });
+
+        // EXPORT CSV
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const rows = [['Heure', 'Humidité', 'Temp', 'Eau']];
+            for (const r of historyData.slice(0, MAX_TABLE_ROWS)) rows.push([r.t, r.h + '%', r.temp + '°C', r.w + '%']);
+            const csv = rows.map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'historique.csv'; a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // CLEAR
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            historyData.length = 0; renderTable(); setNotif('Historique effacé', 'ok');
+        });
+
+        // MODE SOMBRE (toggle class) - ensure all colors readable
+        document.getElementById('modeBtn').addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            // update chart axes colors for dark mode readability
+            const muted = getComputedStyle(document.body).getPropertyValue('--muted').trim();
+            [chartHum, chartTemp, chartWater].forEach(ch => {
+                ch.options.scales.y.ticks.color = muted;
+                ch.update();
+            });
+        });
+
+        // utility: update y tick color on theme change initial
+        setTimeout(() => {
+            const muted = getComputedStyle(document.body).getPropertyValue('--muted').trim();
+            [chartHum, chartTemp, chartWater].forEach(ch => {
+                ch.options.scales.y.ticks.color = muted;
+                ch.update();
+            });
+        }, 200);
+
+        /* make modal close when clicking outside */
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    </script>
+</body>
+
+</html>
