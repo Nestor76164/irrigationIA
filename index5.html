@@ -9,6 +9,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+
     <style>
         /* ---- Design variables ---- */
         :root {
@@ -409,7 +410,7 @@
         <div>
             <div class="charts-grid">
                 <div class="card">
-                    <h3>Humidité du sol <span class="muted" id="curHum" style="float:right">-- %</span></h3>
+                    <h3>Humidité <span class="muted" id="curHum" style="float:right">-- %</span></h3>
                     <div class="chart-sm"><canvas id="chartHum"></canvas></div>
                 </div>
 
@@ -419,7 +420,7 @@
                 </div>
 
                 <div class="card">
-                    <h3>Niveau d'eau <span class="muted" id="curWater" style="float:right">-- %</span></h3>
+                    <h3>Sécheresse du sol <span class="muted" id="curWater" style="float:right">-- %</span></h3>
                     <div class="chart-lg"><canvas id="chartWater"></canvas></div>
                 </div>
 
@@ -492,7 +493,63 @@
         </div>
     </div>
 
-    <script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+
+        import {
+            getDatabase,
+            ref,
+            set,
+            onValue,
+            query,
+            limitToLast
+        } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js";
+
+
+
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBkeYhHZc9Na0UHjETg9GABYsDZFx1bLtQ",
+            authDomain: "esp32-b9013.firebaseapp.com",
+            databaseURL: "https://esp32-b9013-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "esp32-b9013",
+            storageBucket: "esp32-b9013.appspot.com",
+            messagingSenderId: "547189202345",
+            appId: "1:547189202345:web:054bd09f1f7e66f7b538b8"
+        };
+
+        // Initialisation Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Références HTML sol
+        const irrigSwitch = document.getElementById('irrigSwitch');
+
+        // Référence Firebase
+        const irrigRef = ref(db, 'irrigationIA/commande');
+        const historiqueRef = query(
+            ref(db, 'irrigationIA/toutHistorique'),
+            limitToLast(30)
+        );
+
+
+        // Événement du bouton
+        irrigSwitch.addEventListener('change', (e) => {
+            const on = e.target.checked;
+            const value = on ? 1 : 0;
+
+            irrigStatus.textContent = 'Statut : ' + (on ? 'ON' : 'OFF');
+
+            // Envoi vers Firebase
+            set(irrigRef, value)
+                .then(() => {
+                    console.log("Valeur envoyée :", value);
+                })
+                .catch((error) => {
+                    console.error("Erreur Firebase :", error);
+                });
+        });
         /* ---------------- JS: charts, data simulation, UI logic ---------------- */
 
         const MAX_POINTS = 20;       // keep last 20 points in charts
@@ -524,6 +581,8 @@
             });
         }
 
+
+
         // helper rgba
         function hexToRgba(hex, a) {
             const c = hex.replace('#', '');
@@ -544,34 +603,71 @@
                 chart.data.labels.shift();
                 chart.data.datasets[0].data.shift();
             }
-            chart.update();
+
         }
 
         // generate simulated values (real app: replace with ESP32 data)
-        function randomInt(min, max) { return Math.round(Math.random() * (max - min) + min); }
 
-        function simulate() {
-            const now = new Date();
-            const t = now.toLocaleTimeString();
-            const h = randomInt(20, 90);            // humidity %
-            const temp = +(randomInt(18, 33) + Math.random()).toFixed(1);
-            const w = randomInt(10, 95);            // water %
+        function eauToPercent(raw) {
+            return Math.round((raw / 4095) * 100);
+        }
 
-            curHum.textContent = h + ' %';
-            curTemp.textContent = temp + ' °C';
-            curWater.textContent = w + ' %';
+        let lastHash = null;
 
-            historyData.unshift({ t, h, temp, w });
-            if (historyData.length > 500) historyData.pop();
+        onValue(historiqueRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
 
-            // update charts (keeps last MAX_POINTS)
-            pushChart(chartHum, t, h);
-            pushChart(chartTemp, t, temp);
-            pushChart(chartWater, t, w);
+            const hash = JSON.stringify(data);
+            if (hash === lastHash) return; // rien de nouveau
+            lastHash = hash;
+
+            historyData.length = 0;
+
+            [chartHum, chartTemp, chartWater].forEach(ch => {
+                ch.data.labels = [];
+                ch.data.datasets[0].data = [];
+            });
+
+            const keys = Object.keys(data)
+                .sort((a, b) => Number(a) - Number(b))
+                .slice(-MAX_POINTS);
+
+            for (const key of keys) {
+                const item = data[key];
+                if (!item) continue;
+
+                const h = item.humidite;
+                const temp = item.temperature;
+                const w = eauToPercent(item.eau);
+
+                const date = new Date(Number(key) * 1000);
+                const t = date.toLocaleTimeString();
+
+                historyData.unshift({ t, h, temp, w });
+
+                pushChart(chartHum, t, h);
+                pushChart(chartTemp, t, temp);
+                pushChart(chartWater, t, w);
+            }
+
+            // ✅ UNE SEULE mise à jour
+            chartHum.update('none');
+            chartTemp.update('none');
+            chartWater.update('none');
+
+            const last = historyData[0];
+            curHum.textContent = last.h + ' %';
+            curTemp.textContent = last.temp + ' °C';
+            curWater.textContent = last.w + ' %';
 
             renderTable();
-            evaluateAlerts(h, w);
-        }
+            evaluateAlerts(last.h, last.w);
+        });
+
+
+
+
 
         // render table last N rows
         function renderTable() {
@@ -604,10 +700,8 @@
         }
 
         // initial fill
-        for (let i = 0; i < 6; i++) simulate();
 
         // run simulation every 4s
-        const simInterval = setInterval(simulate, 4000);
 
         // PREDICTION modal
         const modal = document.getElementById('modalBackdrop');
@@ -627,14 +721,7 @@
         function closeModal() { modal.style.display = 'none'; }
         window.closeModal = closeModal;
 
-        // IRRIGATION switch
-        const irrigSwitch = document.getElementById('irrigSwitch');
-        irrigSwitch.addEventListener('change', e => {
-            const on = e.target.checked;
-            irrigStatus.textContent = 'Statut : ' + (on ? 'ON' : 'OFF');
-            setNotif(on ? 'Irrigation activée' : 'Irrigation arrêtée', 'ok');
-            // here: call backend / send command
-        });
+
 
         // EXPORT CSV
         document.getElementById('exportBtn').addEventListener('click', () => {
