@@ -699,7 +699,7 @@
             else { setNotif('Système stable', 'ok'); systemState.textContent = 'Nominal'; }
         }
 
-        // initial fill
+        // initial fill 55
 
         // run simulation every 4s
 
@@ -711,8 +711,8 @@
             const avg = recent.length ? Math.round(recent.reduce((s, r) => s + r.h, 0) / recent.length) : null;
             let text = 'Données insuffisantes pour prédire';
             if (avg !== null) {
-                if (avg < 35) text = '🌱 Semence recommandée : Imminente (0–7 jours)';
-                else if (avg < 55) text = '⏳ Période favorable : 7–21 jours';
+                if (avg < 60) text = '🌱 Semence recommandée : Imminente (0–7 jours)';
+                else if (avg < 70) text = '⏳ Période favorable : 7–21 jours';
                 else text = '✅ Attendre, humidité élevée (>55%)';
             }
             document.getElementById('modalText').textContent = text;
